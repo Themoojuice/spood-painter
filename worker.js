@@ -4,7 +4,7 @@
    In:  {type:'init', ep} | {type:'photo', rgba, w, h} | {type:'paint', eyes, size, vibrance, seed}
    Out: {type:'status', text, pct} | {type:'ready', info} | {type:'cutout-done', secs}
         {type:'result', jpeg, secs} | {type:'error', stage, message, detail} | {type:'log', line} */
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 importScripts('pyodide/pyodide.js');
 
 const PY_FILES = ['spoodpaint.py', 'eyes.py', 'limbs.py', 'cutout.py', 'web_pipeline.py', 'eye_model.json'];
@@ -101,7 +101,7 @@ onmessage = (ev) => {
       finally { stopNet(); }
     } else if (m.type === 'paint') {
       try {
-        const r = await wp.paint(JSON.stringify(m.eyes || []), m.size, m.vibrance, m.seed);
+        const r = await wp.paint(JSON.stringify(m.eyes || []), m.size, m.vibrance, m.seed, m.tone, m.warmth);
         const [jpeg, secs] = r.toJs ? r.toJs() : r;
         const ab = jpeg.buffer.slice(jpeg.byteOffset, jpeg.byteOffset + jpeg.byteLength);
         postMessage({ type: 'result', jpeg: ab, secs }, [ab]);

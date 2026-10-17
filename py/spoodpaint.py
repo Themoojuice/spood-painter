@@ -41,6 +41,9 @@ def fbm(shape, base, octaves=4, seed=0):
 LIMB_STRENGTH = 0.9      # 0 = legs painted like the body, 1 = fully redrawn as banded tubes
 TRIM_BY_COLOUR = False
 VIBRANCE = 1.0           # >1 = richer spider colour (app slider); 1.0 = v0.4 look
+TONE_LIFT = 0.0          # 0 = v0.4 values; 1 = lighter midtones and a lifted darkest tone
+INK_AMOUNT = 1.0         # density of fur strokes, shade hatching and rim darkening (v0.4 = 1)
+WARMTH = 0.0             # 0 = greys stay grey; 1 = near-grey parts take a warm ochre-brown cast
 EYE_LOG = []         # eye positions of the last render, in output pixels (for review sheets)   # colour-based halo trimming: helps on clean leaves, eats dark abdomens on dark bark
 
 def refine_mask(alpha, rgb=None):
@@ -454,6 +457,11 @@ def paint_spider(rgb, M, Mb, S, ld, c0, hair, spec, bg, rng, seed, eye_hints=Non
     lab[..., 1:] -= (0.6 * cast * np.clip(along, 0, None))[..., None] * u
     lab[..., 2] += 5.0 * cast                                  # what remains reads as warm (yellowish), translucent cuticle
     chroma = np.sqrt(lab[..., 1] ** 2 + lab[..., 2] ** 2)
+    # warm cast on near-grey parts (bark-grey spiders read as cold/dull otherwise); strongest in midtones
+    grey = (1 - smoothstep(5, 16, chroma)) * smoothstep(8, 30, lab[..., 0]) * (1 - 0.5 * smoothstep(70, 95, lab[..., 0]))
+    lab[..., 1] += WARMTH * 4.0 * grey
+    lab[..., 2] += WARMTH * 13.0 * grey
+    chroma = np.sqrt(lab[..., 1] ** 2 + lab[..., 2] ** 2)
     boost = 1.0 + 0.45 * smoothstep(8, 25, chroma)
     boost = boost * (1.0 + (VIBRANCE - 1.0) * smoothstep(3, 12, chroma))   # user vibrancy; leaves greys grey
     lab[..., 1:] *= boost[..., None]
@@ -461,8 +469,9 @@ def paint_spider(rgb, M, Mb, S, ld, c0, hair, spec, bg, rng, seed, eye_hints=Non
     Lc = lab[..., 0]
     lo, hi = np.percentile(Lc[mc], [1.5, 99.5])
     t = np.clip((Lc - lo) / (hi - lo + 1e-6), 0, 1)
-    t = t ** 0.85
-    lab[..., 0] = 10 + 88 * (0.55 * t * t * (3 - 2 * t) + 0.45 * t)   # darkest = slate, so form still reads; ink supplies true black
+    t = t ** (0.85 - 0.2 * TONE_LIFT)                                   # lower exponent = lighter midtones
+    sm = 0.55 - 0.3 * TONE_LIFT                                         # less S-curve = fewer crushed darks
+    lab[..., 0] = (10 + 8 * TONE_LIFT) + (88 - 8 * TONE_LIFT) * (sm * t * t * (3 - 2 * t) + (1 - sm) * t)   # darkest = slate, so form still reads; ink supplies true black
     sp2 = from_lab(lab)
 
     # -- gouache flats: edge-preserving smoothing (domain transform), keep a whisper of photo texture
@@ -487,7 +496,7 @@ def paint_spider(rgb, M, Mb, S, ld, c0, hair, spec, bg, rng, seed, eye_hints=Non
     gx = cv2.Sobel(blur(mc.astype(np.float32), 0.03 * S), cv2.CV_32F, 1, 0); gy = cv2.Sobel(blur(mc.astype(np.float32), 0.03 * S), cv2.CV_32F, 0, 1)
     gn = np.sqrt(gx ** 2 + gy ** 2) + 1e-6
     away = np.clip((gx * ld[0] + gy * ld[1]) / gn, -1, 1)          # +1 = surface facing away from light
-    paint *= (1 - (0.10 + 0.15 * away[..., None].clip(0, 1)) * rim[..., None] ** 2)
+    paint *= (1 - INK_AMOUNT * (0.10 + 0.15 * away[..., None].clip(0, 1)) * rim[..., None] ** 2)
 
     # -- limbs: redraw thin parts as clean banded tubes (see limbs.py); body parts keep the gouache flats
     import limbs
@@ -560,19 +569,19 @@ def paint_spider(rgb, M, Mb, S, ld, c0, hair, spec, bg, rng, seed, eye_hints=Non
     n_h = int(M.sum() / (0.006 * S) ** 2)
     px = rng.uniform(x0, x1, n_h * 4); py = rng.uniform(y0, y1, n_h * 4)
     ii, jj = py.astype(int).clip(0, h - 1), px.astype(int).clip(0, w - 1)
-    ok = inside[ii, jj] & (dti_f[ii, jj] > 0.005 * S) & (rng.uniform(0, 1, len(px)) < shade[ii, jj] * 0.9)
+    ok = inside[ii, jj] & (dti_f[ii, jj] > 0.005 * S) & (rng.uniform(0, 1, len(px)) < shade[ii, jj] * 0.9 * min(1.0, INK_AMOUNT))
     px, py, ii, jj = px[ok][:n_h], py[ok][:n_h], ii[ok][:n_h], jj[ok][:n_h]
     d = np.stack([bx[ii, jj], by[ii, jj]], 1) + rng.normal(0, 0.06, (len(px), 2))
     d /= np.linalg.norm(d, axis=1, keepdims=True) + 1e-6
     L_ = rng.uniform(0.012, 0.03, len(px)) * S
     hatch = draw_spikes(np.zeros((h, w, 3), np.float32), np.stack([px, py], 1) - d * L_[:, None] / 2, d, L_, np.full(len(px), 0.0018 * S + 0.5), np.float32([1, 1, 1]))[..., 0]
-    ink = np.maximum(ink, hatch * 0.7 * Mb)
+    ink = np.maximum(ink, hatch * 0.7 * min(1.0, INK_AMOUNT) * Mb)
 
     # -- fur: dense short ink strokes along the body flow, denser where darker / hairier
     n_f = int(M.sum() / (0.0045 * S) ** 2)
     px = rng.uniform(x0, x1, n_f * 3); py = rng.uniform(y0, y1, n_f * 3)
     ii, jj = py.astype(int).clip(0, h - 1), px.astype(int).clip(0, w - 1)
-    dens = (0.15 + 0.85 * hair[ii, jj]) * (0.3 + 0.7 * (1 - Lb_[ii, jj])) * smoothstep(0.003 * S, 0.012 * S, dti_f[ii, jj])
+    dens = INK_AMOUNT * (0.15 + 0.85 * hair[ii, jj]) * (0.3 + 0.7 * (1 - Lb_[ii, jj])) * smoothstep(0.003 * S, 0.012 * S, dti_f[ii, jj])
     ok = inside[ii, jj] & ~spec[ii, jj] & (rng.uniform(0, 1, len(px)) < dens)
     px, py, ii, jj = px[ok][:n_f], py[ok][:n_f], ii[ok][:n_f], jj[ok][:n_f]
     d = np.stack([bx[ii, jj], by[ii, jj]], 1)

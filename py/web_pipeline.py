@@ -102,12 +102,15 @@ def _progress_from_log(line):
             return
 
 
-async def paint(eyes_json, size, vibrance, seed):
+async def paint(eyes_json, size, vibrance, seed, tone=0.6, warmth=0.6):
     if 'alpha' not in _state:
         raise RuntimeError('no photo has been cut out yet')
     t = time.time()
     eyes = [tuple(p) for p in json.loads(eyes_json)] or None
     sp.VIBRANCE = float(vibrance)
+    sp.TONE_LIFT = float(tone)
+    sp.INK_AMOUNT = 1.0 - 0.42 * float(tone)     # lighter look also thins the fur/hatching ink
+    sp.WARMTH = float(warmth)
     status('Painting: starting', 2)
     res = sp.render(_state['bgr'], _state['alpha'], eye_hints=eyes, long_side=int(size),
                     border='wash', seed=int(seed), mode='plate')

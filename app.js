@@ -1,6 +1,6 @@
 /* spoodpaint web app: screens, photo intake (picker + Android share sheet), eye taps, results. */
 'use strict';
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 const MAX_SIDE = 4000;            // photos larger than this are scaled down before processing (12 MP passes untouched)
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -22,7 +22,7 @@ if ('serviceWorker' in navigator) {
 const S = {
   ready: false, info: null, photo: null, name: 'photo', bitmap: null, w: 0, h: 0,
   eyes: [], cutDone: false, cutErr: null, painting: false, resultUrl: null, resultBlob: null,
-  size: store.get('size', 2000), vib: store.get('vib', 1.25), seed: 7, t0: 0, timer: null,
+  size: store.get('size', 2000), vib: store.get('vib', 1.25), tone: store.get('tone', 0.6), warm: store.get('warm', 0.6), seed: 7, t0: 0, timer: null,
 };
 let wakeLock = null;
 const worker = new Worker('worker.js');
@@ -47,6 +47,8 @@ function syncSettings() {
   for (const b of $('engSeg').children) b.setAttribute('aria-pressed', String(b.dataset.v === store.get('engine', 'wasm')));
   $('vib').value = S.vib;
   $('vibLabel').textContent = S.vib.toFixed(2) + '×';
+  $('tone').value = S.tone; $('toneLabel').textContent = Math.round(S.tone * 100) + '%';
+  $('warm').value = S.warm; $('warmLabel').textContent = Math.round(S.warm * 100) + '%';
 }
 $('engSeg').onclick = (e) => {
   const v = e.target.dataset.v; if (!v || v === store.get('engine', 'wasm')) return;
@@ -55,6 +57,8 @@ $('engSeg').onclick = (e) => {
 };
 $('sizeSeg').onclick = (e) => { const v = +e.target.dataset.v; if (v) { S.size = v; store.set('size', v); syncSettings(); } };
 $('vib').oninput = () => { S.vib = +$('vib').value; store.set('vib', S.vib); syncSettings(); };
+$('tone').oninput = () => { S.tone = +$('tone').value; store.set('tone', S.tone); syncSettings(); };
+$('warm').oninput = () => { S.warm = +$('warm').value; store.set('warm', S.warm); syncSettings(); };
 syncSettings();
 
 // ---------------------------------------------------------------- worker messages
@@ -240,7 +244,7 @@ function startPaint(newSeed) {
   $('timer').textContent = '0:00';
   keepAwake(true); show('work');
   if (S.eyes.length === 1) toast('Tip: one painted eye can look odd – tap both front eyes');
-  worker.postMessage({ type: 'paint', eyes: S.eyes, size: S.size, vibrance: S.vib, seed: S.seed });
+  worker.postMessage({ type: 'paint', eyes: S.eyes, size: S.size, vibrance: S.vib, tone: S.tone, warmth: S.warm, seed: S.seed });
 }
 $('paint').onclick = () => startPaint(false);
 function finishPaint(m) {
@@ -250,7 +254,7 @@ function finishPaint(m) {
   S.resultBlob = new Blob([m.jpeg], { type: 'image/jpeg' });
   S.resultUrl = URL.createObjectURL(S.resultBlob);
   $('resultImg').src = S.resultUrl;
-  $('resultNote').textContent = `Painted on this phone in ${fmt(total)} · ${S.eyes.length ? S.eyes.length + ' eyes tapped' : 'automatic eyes'} · colour ${S.vib.toFixed(2)}×`;
+  $('resultNote').textContent = `Painted on this phone in ${fmt(total)} · ${S.eyes.length ? S.eyes.length + ' eyes tapped' : 'automatic eyes'} · colour ${S.vib.toFixed(2)}× · light ${Math.round(S.tone * 100)}% · warm ${Math.round(S.warm * 100)}%`;
   show('result');
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification('spoodpaint', { body: 'Your painting is ready' });
 }
