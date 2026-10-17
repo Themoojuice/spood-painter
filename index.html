@@ -64,6 +64,7 @@
   .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
   input[type=range] { width: 100%; accent-color: var(--accent); }
   .tip { font-size: .9rem; color: var(--ink-2); margin: 0 0 26px; }
+  .card.install { border: 1.5px solid var(--accent); background: transparent; margin-top: 0; }
   footer { margin: auto 0 18px; padding-top: 10px; font-size: .78rem; color: var(--ink-2); }
 
   /* eyes */
@@ -113,7 +114,14 @@
     <input id="file" type="file" accept="image/*" hidden>
     <div class="engine"><span id="engDot" class="dot busy"></span><span id="engText">Waking up…</span></div>
     <div class="bar" id="engBarBox"><i id="engBar"></i></div>
-    <p class="tip" style="margin-top:14px">Or, in your gallery: <b>Share → spoodpaint</b>.</p>
+    <p class="tip" style="margin-top:14px" id="shareTip">Or, in your gallery: <b>Share → spoodpaint</b>.</p>
+
+    <div class="card install" id="install" hidden>
+      <h3>Install as an app</h3>
+      <p class="small" style="margin:0 0 12px">Installing puts spoodpaint on your home screen and in your gallery's <b>Share</b> menu.</p>
+      <button id="installBtn" class="primary" style="width:100%" hidden>Install app</button>
+      <p class="small muted" id="installHow" style="margin:10px 0 0">No button? In Chrome: <b>⋮</b> menu → <b>Add to home screen</b> → <b>Install</b>.</p>
+    </div>
 
     <div class="card">
       <h3>Painting</h3>

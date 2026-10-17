@@ -4,7 +4,7 @@
    2. Offline: app shell, Python runtime and packages are cached on first use (models are cached by the worker).
    3. Cross-origin isolation headers (COOP/COEP) on our own responses, which unlocks multi-threaded
       WebAssembly for the neural nets. GitHub Pages can't set headers, so we add them here. */
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 const SHELL = 'spoodpaint-shell-' + VERSION;
 const RUNTIME = 'spoodpaint-runtime-v1';      // pyodide + ort files: big, versioned by path, keep across app updates
 const SHARED = 'spoodpaint-shared';

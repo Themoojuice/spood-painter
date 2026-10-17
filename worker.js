@@ -4,7 +4,7 @@
    In:  {type:'init', ep} | {type:'photo', rgba, w, h} | {type:'paint', eyes, size, vibrance, seed}
    Out: {type:'status', text, pct} | {type:'ready', info} | {type:'cutout-done', secs}
         {type:'result', jpeg, secs} | {type:'error', stage, message, detail} | {type:'log', line} */
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 importScripts('pyodide/pyodide.js');
 
 const PY_FILES = ['spoodpaint.py', 'eyes.py', 'limbs.py', 'cutout.py', 'web_pipeline.py', 'eye_model.json'];

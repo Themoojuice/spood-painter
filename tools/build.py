@@ -22,7 +22,7 @@ def deps(lock, names):
 
 def main():
     shutil.rmtree(DIST, ignore_errors=True)
-    shutil.copytree(SP / 'app', DIST)
+    shutil.copytree(SP / 'app', DIST, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     (DIST / '.nojekyll').write_text('')
     (DIST / 'models').mkdir(exist_ok=True)
     for m in ['birefnet_lite_1120_dc_w16.onnx', 'isnet_w16.onnx']:

@@ -1,6 +1,6 @@
 /* spoodpaint web app: screens, photo intake (picker + Android share sheet), eye taps, results. */
 'use strict';
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 const MAX_SIDE = 4000;            // photos larger than this are scaled down before processing (12 MP passes untouched)
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -270,6 +270,20 @@ $('share').onclick = async () => {
 };
 $('repaint').onclick = () => startPaint(true);
 $('again').onclick = () => { show('home'); $('file').click(); };
+
+// ---------------------------------------------------------------- install as an app
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installEvt = null;
+if (!standalone) { $('install').hidden = false; $('shareTip').innerHTML = 'Once installed, in your gallery: <b>Share → spoodpaint</b>.'; }
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; $('installBtn').hidden = false; $('installHow').hidden = true; });
+$('installBtn').onclick = async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  const { outcome } = await installEvt.userChoice;
+  installEvt = null; $('installBtn').hidden = true;
+  if (outcome !== 'accepted') $('installHow').hidden = false;
+};
+addEventListener('appinstalled', () => { $('install').hidden = true; toast('Installed \u2013 open spoodpaint from your home screen'); });
 
 window.spDebug = { get view() { return view; }, S };   // used by automated tests
 takeShared();
